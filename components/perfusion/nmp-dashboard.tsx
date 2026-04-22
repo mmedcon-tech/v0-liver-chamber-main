@@ -189,10 +189,10 @@ export function NMPDashboard({
             </CardHeader>
             <CardContent className="space-y-2">
               <Button 
-                className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white"
+                className="w-full bg-orange-600 hover:bg-orange-700 text-white"
                 onClick={onStop}
               >
-                Switch to HOPE
+                Stop NMP
               </Button>
               <Button 
                 variant="outline" 
