@@ -167,7 +167,7 @@ export function HOPEDashboard({
                 className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
                 onClick={onStartNMP}
               >
-                Start NMP
+                Switch to NMP
               </Button>
               <Button 
                 variant="outline" 
