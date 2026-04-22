@@ -340,6 +340,14 @@ export function usePerfusionData() {
   const [pressureTargetEnabled, setPressureTargetEnabled] = useState(false)
   const [logDataEnabled, setLogDataEnabled] = useState(false)
   
+  // Simulation states for testing scenarios
+  const [simulateBubbles, setSimulateBubbles] = useState(false)
+  const [simulateLowBileFlow, setSimulateLowBileFlow] = useState(false)
+  const [simulateHighPressure, setSimulateHighPressure] = useState(false)
+  const [simulateTempDeviation, setSimulateTempDeviation] = useState(false)
+  const [isPriming, setIsPriming] = useState(false)
+  const [primingProgress, setPrimingProgress] = useState(0)
+  
   // Start/stop simulation
   const connect = useCallback(() => {
     setIsConnected(true)
@@ -383,12 +391,89 @@ export function usePerfusionData() {
   }, [])
   
   const clearBubbles = useCallback(() => {
-    // Simulate clearing bubble detection
+    // Stop bubble simulation and clear bubble-related alarms
+    setSimulateBubbles(false)
+    
+    // Update telemetry to clear bubbles
+    setTelemetry(prev => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        bubbleTrapStatus: 'OK',
+        bubbleCount: 0,
+        bubbleDetected: false,
+      }
+    })
+    
+    // Clear bubble alarms
+    setAlarms(prev => prev.filter(a => a.parameter !== 'Bubbles'))
+    
+    // Add system notification
+    setAlarms(prev => [...prev, {
+      id: `clear-bubbles-${Date.now()}`,
+      timestamp: new Date(),
+      parameter: 'System',
+      level: 'normal',
+      message: 'Bubble trap cleared successfully',
+      acknowledged: true,
+    }])
   }, [])
   
   const primeCircuit = useCallback(() => {
-    // Simulate priming
-  }, [])
+    // Start priming simulation
+    if (isPriming) return // Already priming
+    
+    setIsPriming(true)
+    setPrimingProgress(0)
+    
+    // Add priming started notification
+    setAlarms(prev => [...prev, {
+      id: `priming-start-${Date.now()}`,
+      timestamp: new Date(),
+      parameter: 'System',
+      level: 'warning',
+      message: 'Circuit priming in progress...',
+      acknowledged: false,
+    }])
+    
+    // Simulate priming progress over 5 seconds
+    let progress = 0
+    const interval = setInterval(() => {
+      progress += 20
+      setPrimingProgress(progress)
+      
+      if (progress >= 100) {
+        clearInterval(interval)
+        setIsPriming(false)
+        setPrimingProgress(100)
+        
+        // Clear any existing bubbles when priming completes
+        setSimulateBubbles(false)
+        setTelemetry(prev => {
+          if (!prev) return prev
+          return {
+            ...prev,
+            bubbleTrapStatus: 'OK',
+            bubbleCount: 0,
+            bubbleDetected: false,
+          }
+        })
+        
+        // Add completion notification
+        setAlarms(prev => [...prev.filter(a => !a.message.includes('priming in progress')), {
+          id: `priming-complete-${Date.now()}`,
+          timestamp: new Date(),
+          parameter: 'System',
+          level: 'normal',
+          message: 'Circuit priming completed successfully',
+          acknowledged: true,
+        }])
+        
+        // Reset progress after a short delay
+        setTimeout(() => setPrimingProgress(0), 2000)
+      }
+    }, 1000)
+  }, [isPriming])
   
   const emergencyStop = useCallback(() => {
     setMode('IDLE')
@@ -414,7 +499,54 @@ export function usePerfusionData() {
         ? Math.floor((Date.now() - startTime.getTime()) / 1000) 
         : 0
       
-      const newTelemetry = generateTelemetry(mode, elapsedSeconds, runId)
+      let newTelemetry = generateTelemetry(mode, elapsedSeconds, runId)
+      
+      // Apply simulation overrides for testing
+      if (simulateBubbles) {
+        newTelemetry = {
+          ...newTelemetry,
+          bubbleTrapStatus: 'CRITICAL',
+          bubbleCount: Math.floor(Math.random() * 5) + 3,
+          bubbleDetected: true,
+        }
+      }
+      
+      if (simulateLowBileFlow && mode === 'NMP') {
+        newTelemetry = {
+          ...newTelemetry,
+          bileFlow: vary(2, 0.5), // Low bile flow (normal is ~15)
+        }
+      }
+      
+      if (simulateHighPressure) {
+        if (mode === 'HOPE') {
+          newTelemetry = {
+            ...newTelemetry,
+            pvPressure: createReading(vary(8, 0.5), 'mmHg', 0, 5, 2, 4), // Above 5 mmHg limit
+          }
+        } else if (mode === 'NMP') {
+          newTelemetry = {
+            ...newTelemetry,
+            haPressure: createReading(vary(110, 5), 'mmHg', 40, 100, 55, 70), // Above 100 mmHg limit
+            pvPressure: createReading(vary(18, 1), 'mmHg', 5, 15, 8, 12), // Above 15 mmHg limit
+          }
+        }
+      }
+      
+      if (simulateTempDeviation) {
+        if (mode === 'HOPE') {
+          newTelemetry = {
+            ...newTelemetry,
+            organTemp: createReading(vary(14, 1), '°C', 0, 15, 2, 6), // Too warm for HOPE
+          }
+        } else if (mode === 'NMP') {
+          newTelemetry = {
+            ...newTelemetry,
+            organTemp: createReading(vary(34, 0.5), '°C', 35, 39, 36.5, 37.5), // Too cold for NMP
+          }
+        }
+      }
+      
       setTelemetry(newTelemetry)
       
       // Add to history (keep last 120 samples = 2 minutes)
@@ -508,7 +640,7 @@ export function usePerfusionData() {
     }, 1000)
     
     return () => clearInterval(interval)
-  }, [isConnected, mode, startTime, runId])
+  }, [isConnected, mode, startTime, runId, simulateBubbles, simulateLowBileFlow, simulateHighPressure, simulateTempDeviation])
   
   return {
     mode,
@@ -534,5 +666,16 @@ export function usePerfusionData() {
     setFlowRate,
     setPressureTargetEnabled,
     setLogDataEnabled,
+    // Simulation controls for testing
+    simulateBubbles,
+    setSimulateBubbles,
+    simulateLowBileFlow,
+    setSimulateLowBileFlow,
+    simulateHighPressure,
+    setSimulateHighPressure,
+    simulateTempDeviation,
+    setSimulateTempDeviation,
+    isPriming,
+    primingProgress,
   }
 }

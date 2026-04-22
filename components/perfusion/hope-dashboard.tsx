@@ -23,6 +23,8 @@ import {
   Waves,
   Zap,
   Info,
+  Bug,
+  Loader2,
 } from 'lucide-react'
 import {
   LineChart,
@@ -52,11 +54,20 @@ interface HOPEDashboardProps {
   pressureTargetEnabled: boolean
   onFlowRateChange: (value: number) => void
   onPressureTargetChange: (enabled: boolean) => void
-  onStop: () => void
+  onStartNMP: () => void
   onPrimeCircuit: () => void
   onClearBubbles: () => void
   onEmergencyStop: () => void
   onAcknowledgeAlarm: (id: string) => void
+  // Simulation props
+  simulateBubbles: boolean
+  onSimulateBubbles: (value: boolean) => void
+  simulateHighPressure: boolean
+  onSimulateHighPressure: (value: boolean) => void
+  simulateTempDeviation: boolean
+  onSimulateTempDeviation: (value: boolean) => void
+  isPriming: boolean
+  primingProgress: number
 }
 
 function formatTime(seconds: number): string {
@@ -91,11 +102,19 @@ export function HOPEDashboard({
   pressureTargetEnabled,
   onFlowRateChange,
   onPressureTargetChange,
-  onStop,
+  onStartNMP,
   onPrimeCircuit,
   onClearBubbles,
   onEmergencyStop,
   onAcknowledgeAlarm,
+  simulateBubbles,
+  onSimulateBubbles,
+  simulateHighPressure,
+  onSimulateHighPressure,
+  simulateTempDeviation,
+  onSimulateTempDeviation,
+  isPriming,
+  primingProgress,
 }: HOPEDashboardProps) {
   const unacknowledgedAlarms = alarms.filter(a => !a.acknowledged)
   const chartData = history.slice(-60).map((h, i) => ({ ...h, index: i }))
@@ -145,24 +164,37 @@ export function HOPEDashboard({
             </CardHeader>
             <CardContent className="space-y-2">
               <Button 
-                className="w-full bg-cyan-600 hover:bg-cyan-700 text-white"
-                onClick={onStop}
+                className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
+                onClick={onStartNMP}
               >
-                Stop HOPE
+                Start NMP
               </Button>
               <Button 
                 variant="outline" 
                 className="w-full border-cyan-500/50 text-cyan-300 hover:bg-cyan-500/20 bg-transparent"
                 onClick={onPrimeCircuit}
+                disabled={isPriming}
               >
-                Prime Circuit
+                {isPriming ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Priming {primingProgress}%
+                  </>
+                ) : (
+                  'Prime Circuit'
+                )}
               </Button>
+              {isPriming && (
+                <Progress value={primingProgress} className="h-2 bg-slate-700 [&>div]:bg-cyan-500" />
+              )}
               <Button 
                 variant="outline" 
-                className="w-full border-cyan-500/50 text-cyan-300 hover:bg-cyan-500/20 bg-transparent"
+                className={`w-full border-cyan-500/50 text-cyan-300 hover:bg-cyan-500/20 bg-transparent ${
+                  telemetry?.bubbleDetected ? 'border-red-500/50 text-red-300 animate-pulse' : ''
+                }`}
                 onClick={onClearBubbles}
               >
-                Clear Bubbles
+                {telemetry?.bubbleDetected ? 'Clear Bubbles (!)' : 'Clear Bubbles'}
               </Button>
               <Button 
                 className="w-full bg-red-600 hover:bg-red-700 text-white mt-4"
@@ -219,6 +251,39 @@ export function HOPEDashboard({
                 <span className="text-xs text-slate-400">Humidity</span>
                 <span className="text-cyan-400 font-mono">{telemetry?.chamberHumidity.toFixed(0) || 0}%</span>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Test Simulation Panel */}
+          <Card className="bg-slate-900/80 border-amber-500/30 backdrop-blur">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-amber-400 flex items-center gap-2">
+                <Bug className="w-4 h-4" /> Test Scenarios
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-400">Simulate Bubbles</span>
+                <Switch 
+                  checked={simulateBubbles}
+                  onCheckedChange={onSimulateBubbles}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-400">High Pressure</span>
+                <Switch 
+                  checked={simulateHighPressure}
+                  onCheckedChange={onSimulateHighPressure}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-400">Temp Deviation</span>
+                <Switch 
+                  checked={simulateTempDeviation}
+                  onCheckedChange={onSimulateTempDeviation}
+                />
+              </div>
+              <p className="text-xs text-slate-500 italic">Toggle to simulate alarm conditions</p>
             </CardContent>
           </Card>
         </div>

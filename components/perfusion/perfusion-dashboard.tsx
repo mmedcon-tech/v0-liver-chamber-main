@@ -43,6 +43,17 @@ export function PerfusionDashboard() {
     setPressureTargetEnabled,
     setLogDataEnabled,
     acknowledgeAlarm,
+    // Simulation controls
+    simulateBubbles,
+    setSimulateBubbles,
+    simulateLowBileFlow,
+    setSimulateLowBileFlow,
+    simulateHighPressure,
+    setSimulateHighPressure,
+    simulateTempDeviation,
+    setSimulateTempDeviation,
+    isPriming,
+    primingProgress,
   } = usePerfusionData()
 
   const elapsedTime = telemetry?.elapsedTime || 0
@@ -64,6 +75,15 @@ export function PerfusionDashboard() {
         onClearBubbles={clearBubbles}
         onEmergencyStop={emergencyStop}
         onAcknowledgeAlarm={acknowledgeAlarm}
+        // Simulation props
+        simulateBubbles={simulateBubbles}
+        onSimulateBubbles={setSimulateBubbles}
+        simulateHighPressure={simulateHighPressure}
+        onSimulateHighPressure={setSimulateHighPressure}
+        simulateTempDeviation={simulateTempDeviation}
+        onSimulateTempDeviation={setSimulateTempDeviation}
+        isPriming={isPriming}
+        primingProgress={primingProgress}
       />
     )
   }
@@ -87,6 +107,17 @@ export function PerfusionDashboard() {
         onClearBubbles={clearBubbles}
         onEmergencyStop={emergencyStop}
         onAcknowledgeAlarm={acknowledgeAlarm}
+        // Simulation props
+        simulateBubbles={simulateBubbles}
+        onSimulateBubbles={setSimulateBubbles}
+        simulateLowBileFlow={simulateLowBileFlow}
+        onSimulateLowBileFlow={setSimulateLowBileFlow}
+        simulateHighPressure={simulateHighPressure}
+        onSimulateHighPressure={setSimulateHighPressure}
+        simulateTempDeviation={simulateTempDeviation}
+        onSimulateTempDeviation={setSimulateTempDeviation}
+        isPriming={isPriming}
+        primingProgress={primingProgress}
       />
     )
   }
