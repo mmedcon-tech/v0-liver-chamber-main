@@ -1,0 +1,137 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// NOTE: SQLite does not support native enums.
+// PerfusionMode values: "HOPE" | "NMP" | "TRANSITION"
+// SystemState  values: "OK" | "WARN" | "EMERG" | "FAULT"
+// AlarmSeverity values: "INFO" | "WARN" | "CRITICAL"
+
+model PerfusionRun {
+  id            Int       @id @default(autoincrement())
+  runCode       String    @unique
+  startedAt     DateTime  @default(now())
+  endedAt       DateTime?
+
+  operatorName  String?
+  organType     String?
+  organMass_g   Float?
+
+  mode          String    @default("HOPE") // PerfusionMode
+  protocolName  String?
+  notes         String?
+
+  readings      Reading[]
+  events        AlarmEvent[]
+  setpoints     SetpointSnapshot[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Reading {
+  id                 Int      @id @default(autoincrement())
+  runId              Int
+  timestamp          DateTime @default(now())
+
+  seq                Int?
+  sourceTimestamp_ms BigInt?
+
+  mode               String   // PerfusionMode: "HOPE" | "NMP" | "TRANSITION"
+  systemState        String   // SystemState: "OK" | "WARN" | "EMERG" | "FAULT"
+
+  // --- Pressure & Flow ---
+  pvPressure_mmHg    Float?
+  haPressure_mmHg    Float?
+  pvFlow_mLmin       Float?
+  haFlow_mLmin       Float?
+
+  // --- Temperature Sensors ---
+  tempBath_C         Float?   // Reservoir / bath
+  tempInflow_C       Float?   // Inflow line
+  tempPostHX_C       Float?   // Post-heat-exchanger
+  tempOrganSurface_C Float?   // IR sensor on organ
+
+  // --- Ultrasonic O2 Sensor ---
+  o2GasConc_pct      Float?   // O2 concentration %
+  o2GasFlow_Lmin     Float?   // O2 gas flow L/min
+  o2SensorTemp_C     Float?   // Sensor internal temp
+
+  // --- Power ---
+  powerBus_V         Float?
+
+  // --- Safety Flags ---
+  pressureWarning    Boolean  @default(false)
+  pressureEmergency  Boolean  @default(false)
+  tempWarning        Boolean  @default(false)
+  oxygenWarning      Boolean  @default(false)
+  safetyTriggered    Boolean  @default(false)
+
+  // --- Pump Commands ---
+  pvPumpCmd_percent  Float?
+  haPumpCmd_percent  Float?
+  pumpEnabled        Boolean?
+
+  run                PerfusionRun @relation(fields: [runId], references: [id])
+
+  @@index([runId])
+  @@index([timestamp])
+  @@unique([runId, seq])
+}
+
+model AlarmEvent {
+  id              Int       @id @default(autoincrement())
+  runId           Int?
+  timestamp       DateTime  @default(now())
+
+  eventType       String    // e.g. "PRESSURE_HIGH", "TEMP_LOW"
+  severity        String    @default("WARN") // AlarmSeverity: "INFO"|"WARN"|"CRITICAL"
+  description     String?
+
+  mode            String?   // PerfusionMode at time of alarm
+  systemState     String?   // SystemState at time of alarm
+
+  acknowledged    Boolean   @default(false)
+  acknowledgedAt  DateTime?
+  resolved        Boolean   @default(false)
+  resolvedAt      DateTime?
+
+  run             PerfusionRun? @relation(fields: [runId], references: [id])
+
+  @@index([runId])
+  @@index([timestamp])
+  @@index([eventType])
+}
+
+model SetpointSnapshot {
+  id                    Int      @id @default(autoincrement())
+  runId                 Int
+  timestamp             DateTime @default(now())
+  mode                  String   // PerfusionMode
+
+  liverMass_g           Float?
+
+  tempBathTarget_C      Float?
+  tempInflowTarget_C    Float?
+
+  pvFlowTarget_mLmin    Float?
+  haFlowTarget_mLmin    Float?
+
+  pvPressureTarget_mmHg Float?
+  haPressureTarget_mmHg Float?
+
+  o2GasConcTarget_pct   Float?
+  o2GasFlowTarget_Lmin  Float?
+
+  warmRate_C_per_min    Float?
+
+  run                   PerfusionRun @relation(fields: [runId], references: [id])
+
+  @@index([runId])
+  @@index([timestamp])
+}
